@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mini SIEM · Security Dashboard</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
+<body><div class="app-shell"><aside class="sidebar"><div class="brand"><div class="brand-mark">S</div><div><b>MINI SIEM</b><small>SECURITY CONSOLE</small></div></div><div class="side-label">MONITOR</div><a class="nav active">▦ &nbsp; Overview</a><a class="nav">◉ &nbsp; Event Logs</a><a class="nav">⚑ &nbsp; Threat Alerts</a><div class="side-bottom"><div class="online-dot"></div><span>Local collector</span><a href="{{ url_for('logout') }}">Logout ↗</a></div></aside>
+<main class="main"><header class="topbar"><div><p class="eyebrow">SECURITY OPERATIONS / OVERVIEW</p><h1>Security Dashboard</h1><p class="muted">Windows endpoint authentication monitoring</p></div><div class="live-pill"><i></i> LIVE MONITORING</div></header>
+<section class="status-strip"><div><span class="pulse"></span><b>Collector active</b><small>Polling every 5 seconds</small></div><div><span class="muted">Last event</span><b id="last-event">Waiting for Windows events</b></div><div><span class="muted">Threat level</span><b id="threat" class="threat-low">LOW</b></div></section>
+<section class="stats-grid"><article class="stat-card"><span>Total events</span><strong id="total-logs">0</strong><small>Collected from Windows Security</small></article><article class="stat-card"><span>Security alerts</span><strong id="total-alerts">0</strong><small>Rule-based detections</small></article><article class="stat-card"><span>Failed logons</span><strong id="failed">0</strong><small>Event ID 4625</small></article><article class="stat-card"><span>Successful logons</span><strong id="successful">0</strong><small>Event ID 4624</small></article></section>
+<section class="content-grid"><article class="panel"><div class="panel-head"><div><p class="eyebrow">REAL-TIME FEED</p><h2>Recent security events</h2></div><span class="tag">AUTO REFRESH · 5S</span></div><div class="table-wrap"><table><thead><tr><th>TIME</th><th>EVENT</th><th>SOURCE IP</th><th>ORIGIN</th></tr></thead><tbody id="logs"><tr><td colspan="4" class="empty">Waiting for first Windows event…</td></tr></tbody></table></div></article>
+<article class="panel"><div class="panel-head"><div><p class="eyebrow">DETECTION ENGINE</p><h2>Recent alerts</h2></div><span class="alert-count" id="high-alerts">0 HIGH</span></div><div id="alerts" class="alert-list"><div class="empty">No alerts detected yet.</div></div></article></section>
+<section class="panel bottom-panel"><div class="panel-head"><div><p class="eyebrow">SOURCE BREAKDOWN</p><h2>Top event source IPs</h2></div></div><div id="top-ips" class="ip-list"><span class="muted">No event sources recorded yet.</span></div></section>
+<footer>MINI SIEM · Local Windows Security Event Monitor <span>Educational demonstration · localhost only</span></footer></main></div>
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function render(data){
+ document.getElementById('total-logs').textContent=data.total_logs;
+ document.getElementById('total-alerts').textContent=data.total_alerts;
+ document.getElementById('failed').textContent=data.failed;
+ document.getElementById('successful').textContent=data.successful;
+ document.getElementById('high-alerts').textContent=data.high_alerts+' HIGH';
+ document.getElementById('last-event').textContent=data.last_event;
+ const threat=document.getElementById('threat'); threat.textContent=data.threat; threat.className='threat-'+data.threat.toLowerCase();
+ document.getElementById('logs').innerHTML=data.logs.length ? data.logs.map(x=>`<tr><td>${esc(x.timestamp)}</td><td><span class="event ${x.event_type==='Failed Login'?'failed-event':'success-event'}">${esc(x.event_type)}</span></td><td>${esc(x.ip_address)}</td><td>${esc(x.source||'Windows Security')}</td></tr>`).join('') : '<tr><td colspan="4" class="empty">No Windows authentication events collected yet. Generate a Windows sign-in event to test.</td></tr>';
+ document.getElementById('alerts').innerHTML=data.alerts.length ? data.alerts.map(x=>`<div class="alert-item"><div class="alert-icon">!</div><div><b>${esc(x.alert_type)}</b><p>${esc(x.ip_address)} · ${esc(x.details)}</p><small>${esc(x.timestamp)}</small></div></div>`).join('') : '<div class="empty">No alerts detected yet.</div>';
+ document.getElementById('top-ips').innerHTML=data.top_ips.length ? data.top_ips.map(x=>`<div class="ip-row"><span>${esc(x.ip_address)}</span><div class="bar"><i style="width:${Math.max(5,Math.min(100,x.count/Math.max(...data.top_ips.map(y=>y.count))*100))}%"></i></div><b>${x.count}</b></div>`).join('') : '<span class="muted">No event sources recorded yet.</span>';
+}
+async function refresh(){try{const r=await fetch('/api/dashboard',{cache:'no-store'});if(r.status===401||r.redirected){location.href='/login';return;}render(await r.json());}catch(e){console.warn('Dashboard refresh failed',e);}}
+refresh();setInterval(refresh,5000);
+</script></body></html>
